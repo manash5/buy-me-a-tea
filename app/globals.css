@@ -1,5 +1,37 @@
 @import "tailwindcss";
 
+
+@layer utilities {
+  /* Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  /* Scrollbar styling */
+  .scrollbar-dark::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-track {
+    background: #1a202c; /* bg-gray-900 */
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-thumb {
+    background: #2d3748; /* bg-gray-800 */
+    border-radius: 4px;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-thumb:hover {
+    background: #4a5568; /* bg-gray-700 */
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
