@@ -2,9 +2,12 @@ import React from 'react'
 
 const username = ({params}) => {
   return (
-    <div className=''>
-      {params.username}
+    <>
+    {params.username}
+    <div className='cover w-full bg-red-50 relative'>
+      
     </div>
+    </>
   )
 }
 
