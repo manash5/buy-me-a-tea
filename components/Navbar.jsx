@@ -25,7 +25,7 @@ const Navbar = () => {
 
   return (
     <>
-    <nav className='bg-violet-950 text-white flex justify-between items-center px-4 h-16 '>
+    <nav className='bg-deep-blue text-white flex justify-between items-center px-4 h-16 '>
         <Link className="logo font-bold text-lg flex justify-center items-center gap-2 hover:cursor-pointer" href = {"/"} >
           <img className='w-10 h-10' src ="/tea.gif"></img>
           <span>Buy-Me-A-Tea</span>
