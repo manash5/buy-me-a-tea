@@ -1,23 +1,34 @@
 "use client"
-import React from 'react'
+import React, { useCallback } from 'react'
 import { useState } from 'react'
 import Link from 'next/link';
 import LoginPopup from "@/components/login";
 import { useSession, signIn, signOut } from "next-auth/react"
+import { useRouter } from 'next/navigation'; 
 
 const Navbar = () => {
 
   const { data: session } = useSession()
   const [showLoginPopup, setShowLoginPopup] = useState(false);
+  const router = useRouter(); 
 
   const toggleLoginPopup = () => {
     setShowLoginPopup(!showLoginPopup);
   };
 
+  const handleClick =useCallback(()=>{
+    router.push("/"); 
+  }, [router])
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: "/" }); // Redirects to homepage after logout
+    router.push("/"); // Extra safety (optional)
+  };
+
   return (
     <>
     <nav className='bg-violet-950 text-white flex justify-between items-center px-4 h-16 '>
-        <div className="logo font-bold text-lg flex justify-center items-center gap-2 hover:cursor-pointer" >
+        <div className="logo font-bold text-lg flex justify-center items-center gap-2 hover:cursor-pointer" onClick={handleClick} >
           <img className='w-10 h-10' src ="/tea.gif"></img>
           <span>Buy-Me-A-Tea</span>
         </div>
@@ -32,8 +43,10 @@ const Navbar = () => {
         {session && <Link href ={"/dashboard"}> <button className="text-white bg-gradient-to-r from-purple-900 to-pink-900 hover:bg-gradient-to-l focus:ring-4 
           focus:outline-none focus:ring-purple-200 dark:focus:ring-purple-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2"> profile</button></Link>}
 
-        {session && <Link href ={"/dashboard"}> <button className="text-white bg-gradient-to-r from-purple-900 to-pink-900 hover:bg-gradient-to-l focus:ring-4 
-          focus:outline-none focus:ring-purple-200 dark:focus:ring-purple-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2"> Logout</button></Link>}
+        {session && <button className="text-white bg-gradient-to-r from-purple-900 to-pink-900 hover:bg-gradient-to-l focus:ring-4 
+          focus:outline-none focus:ring-purple-200 dark:focus:ring-purple-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2"
+          onClick={handleLogout}> 
+          Logout</button>}
 
         {!session && <button type="button" className="text-white bg-gradient-to-r from-purple-900 to-pink-900 hover:bg-gradient-to-l focus:ring-4 
           focus:outline-none focus:ring-purple-200 dark:focus:ring-purple-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2"
