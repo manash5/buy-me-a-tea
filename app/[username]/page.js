@@ -1,6 +1,69 @@
-import React from 'react'
+"use client"
+import React, { useState, useRef } from 'react'
+import {initiateEsewaPayment} from "@/actions/esewa"
 
-const username = ({params}) => {
+const UsernamePage = ({params}) => {
+  const {username} = React.use(params); 
+  const [name, setName] = useState('');
+  const [message, setMessage] = useState('');
+  const [amount, setAmount] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [signature, setSignature] = useState("");
+  const [formFields, setFormFields] = useState({});
+  const formRef = useRef(null);
+
+  const handlePayment = async(presetAmount = null) => {
+    setIsProcessing(true);
+    
+    // Validate inputs
+    if (!name.trim()) {
+      alert('Please enter your name');
+      setIsProcessing(false);
+      return;
+    }
+    
+    const paymentAmount = presetAmount || amount;
+    if (!paymentAmount || isNaN(paymentAmount)) {
+      alert('Please enter a valid amount');
+      setIsProcessing(false);
+      return;
+    }
+
+    await initiatePayment(paymentAmount);
+  };
+
+  const initiatePayment = async(paymentAmount) => {
+    const path = "https://rc-epay.esewa.com.np/api/epay/main/v2/form";
+    
+    const paymentData = {
+      amount: paymentAmount.toString(),
+      tax_amount: 0,
+      total_amount: paymentAmount.toString(),
+      transaction_uuid: Date.now().toString(), 
+      product_code: "EPAYTEST", 
+      product_service_charge: 0,
+      product_delivery_charge: 0,
+      success_url: "http://localhost:3000/success", 
+      failure_url: "http://localhost:3000/failure", 
+      signed_field_names: "total_amount,transaction_uuid,product_code",
+      
+      customer_data : JSON.stringify({
+        name, 
+        message, 
+        username: name
+      })
+    };
+
+    // Get signed payment data from server
+    const { signature: sig } = await initiateEsewaPayment(paymentData);
+    setSignature(sig);
+    setFormFields(paymentData);
+    // Submit the form after state updates
+    setTimeout(() => {
+      if (formRef.current) formRef.current.submit();
+    }, 100);
+  };
+
   return (
     <>
     <div className='cover w-full bg-red-50 relative'>
@@ -11,7 +74,7 @@ const username = ({params}) => {
     </div>
     <div className="info flex justify-center items-center my-24 flex-col gap-2">
       <div className="title font-bold text-lg">
-        @{params.username}
+        @{username}
       </div>
       <div className="subtitle text-slate-400">
         Creating art for Princess Fiona 
@@ -42,17 +105,47 @@ const username = ({params}) => {
           <div className="makePayment w-1/2 bg-slate-900  rounded-lg p-5 px-10">
               <h2 className='text-2xl font-bold my-5'>Make a Payment</h2>
               <div className="flex gap-2 flex-col">
-                <input type = "text" className='w-full p-3 rounded-lg bg-slate-800' placeholder='Enter Name'/>
-                <input type = "text" className='w-full p-3 rounded-lg bg-slate-800' placeholder='Enter Message'/>
-                <input type = "text" className='w-full p-3 rounded-lg bg-slate-800' placeholder='Enter Amount'/>
-                <button className="text-white bg-gradient-to-r from-cyan-800 to-blue-900 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-cyan-800 dark:focus:ring-cyan-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2">Pay</button>
-          {/* <button type="button" class="text-white bg-gradient-to-r from-cyan-500 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-cyan-300 dark:focus:ring-cyan-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2">Cyan to Blue</button> */}
+                <input type = "text" className='w-full p-3 rounded-lg bg-slate-800' placeholder='Enter Name' value = {name} onChange={(e)=> setName(e.target.value)}/>
+                <input type = "text" className='w-full p-3 rounded-lg bg-slate-800' placeholder='Enter Message' value = {message} onChange={(e)=> setMessage(e.target.value)}/>
+                <input type = "text" className='w-full p-3 rounded-lg bg-slate-800' placeholder='Enter Amount' value = {amount} onChange={(e)=> setAmount(e.target.value)}/>
+                <button onClick={() => handlePayment()}
+                className="text-white bg-gradient-to-r from-cyan-800 to-blue-900 hover:bg-gradient-to-bl focus:ring-4 
+                focus:outline-none focus:ring-cyan-800 dark:focus:ring-cyan-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2">
+                  Pay
+                </button>
               </div>
-
+              {/* Hidden form for eSewa submission */}
+              <form ref={formRef} method="POST" action="https://rc-epay.esewa.com.np/api/epay/main/v2/form" style={{ display: 'none' }}>
+                {Object.entries(formFields).map(([key, value]) => (
+                  <input key={key} type="hidden" name={key} value={value} />
+                ))}
+                {signature && <input type="hidden" name="signature" value={signature} />}
+              </form>
               <div className="flex gap-2 mt-5 justify-center">
-                <button className='bg-slate-800 p-3 rounded-lg'>Pay $10</button>
-                <button className='bg-slate-800 p-3 rounded-lg'>Pay $20</button>
-                <button className='bg-slate-800 p-3 rounded-lg'>Pay $30</button>
+                <button className='bg-slate-800 p-3 rounded-lg'
+                onClick={(e)=>{
+                  e.preventDefault();
+                  setAmount('100');
+                  handlePayment(100); 
+                }}>
+                  Pay ₹100
+                </button>
+                <button className='bg-slate-800 p-3 rounded-lg'
+                onClick={(e)=>{
+                  e.preventDefault();
+                  setAmount('200');
+                  handlePayment(200); 
+                }}>
+                  Pay ₹200
+                </button>
+                <button className='bg-slate-800 p-3 rounded-lg'
+                onClick={(e)=>{
+                  e.preventDefault();
+                  setAmount('300');
+                  handlePayment(300); 
+                }}>
+                  Pay ₹300
+                </button>
               </div>
           </div>
       </div>
@@ -62,4 +155,4 @@ const username = ({params}) => {
   )
 }
 
-export default username
+export default UsernamePage
