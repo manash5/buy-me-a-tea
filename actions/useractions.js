@@ -1,35 +1,28 @@
 "use server"
 
-
 import Payment from "@/models/payment"
 import connectDb from "@/db/connectDb"
 import User from "@/models/user"
 
-
-export const initiate = async (amount, to_username, paymentform) => {
+export const saveEsewaPayment = async (name, to_user, oid, message, amount) => {
     await connectDb()
-    // fetch the secret of the user who is getting the payment 
-    let user = await User.findOne({username: to_username})
-    const secret = user.razorpaysecret
-
-    var instance = new Razorpay({ key_id: user.razorpayid, key_secret: secret })
-
-
-
-    let options = {
-        amount: Number.parseInt(amount),
-        currency: "NPRi ssa",
-    }
-
-    let x = await instance.orders.create(options)
-
-    // create a payment object which shows a pending payment in the database
-    await Payment.create({ oid: x.id, amount: amount/100, to_user: to_username, name: paymentform.name, message: paymentform.message })
-
-    return x
-
+    let payment = new Payment({
+        name,
+        to_user,
+        oid,
+        message,
+        amount,
+        done: false, 
+    })
+    await payment.save()
 }
 
+export const fetchEsewaUser = async (username) => {
+    await connectDb()
+    let u = await User.findOne({ username: username })
+    let user = u.toObject({ flattenObjectIds: true })
+    return user
+}
 
 export const fetchuser = async (username) => {
     await connectDb()
@@ -40,14 +33,22 @@ export const fetchuser = async (username) => {
 
 export const fetchpayments = async (username) => {
     await connectDb()
-    // find all payments sorted by decreasing order of amount and flatten object ids
-    let p = await Payment.find({ to_user: username, done:true }).sort({ amount: -1 }).limit(10).lean()
-    return p
+    let payments = await Payment.find({ to_user: username, done:true })
+        .sort({ amount: -1 })
+        .limit(10)
+        .lean()
+        .then(payments => payments.map(payment => ({
+            ...payment,
+            _id: payment._id.toString(), // Convert ObjectId to string
+            oid: payment.oid?.toString() // Convert if exists
+        })));
+    
+    return payments;
 }
 
 export const updateProfile = async (data, oldusername) => {
     await connectDb()
-    let ndata = Object.fromEntries(data)
+    let ndata = { ...data } // FIX: use object spread instead of Object.fromEntries
 
     // If the username is being updated, check if username is available
     if (oldusername !== ndata.username) {
@@ -61,11 +62,7 @@ export const updateProfile = async (data, oldusername) => {
         
     }
     else{
-
-        
         await User.updateOne({email: ndata.email}, ndata)
     }
-
-
 }
 

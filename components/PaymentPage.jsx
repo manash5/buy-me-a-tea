@@ -1,172 +1,180 @@
 "use client"
-import React, { useEffect, useState } from 'react'
-import Script from 'next/script'
-import { useSession } from 'next-auth/react'
-import { fetchuser, fetchpayments, initiate } from '@/actions/useractions'
-import { useSearchParams } from 'next/navigation'
-import { ToastContainer, toast } from 'react-toastify';
+import React, { useEffect, useState, useRef } from 'react'
+import { fetchuser, fetchpayments, initiate, saveEsewaPayment } from '@/actions/useractions'
 import 'react-toastify/dist/ReactToastify.css';
-import { Bounce } from 'react-toastify';
-import { useRouter } from 'next/navigation'
-import { notFound } from "next/navigation"
+import { initiateEsewaPayment } from "@/actions/esewa"
 
-const PaymentPage = ({ username }) => {
-    // const { data: session } = useSession()
+const PaymentPage = ({ username}) => {
+    
+    const [name, setName] = useState('');
+    const [message, setMessage] = useState('');
+    const [amount, setAmount] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [signature, setSignature] = useState("");
+    const [formFields, setFormFields] = useState({});
+    const formRef = useRef(null);
 
-    const [paymentform, setPaymentform] = useState({name: "", message: "", amount: ""})
-    const [currentUser, setcurrentUser] = useState({})
-    const [payments, setPayments] = useState([])
-    const searchParams = useSearchParams()
-    const router = useRouter()
+    const [payments, setpayments] = useState([])
+    const [CurrentUser, setCurrentUser] = useState({})
 
     useEffect(() => {
         getData()
-    }, [])
-
-    useEffect(() => {
-        if(searchParams.get("paymentdone") == "true"){
-        toast('Thanks for your donation!', {
-            position: "top-right",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-            progress: undefined,
-            theme: "light",
-            transition: Bounce,
-            });
-        }
-        router.push(`/${username}`)
-     
-    }, [])
-    
-
-    const handleChange = (e) => {
-        setPaymentform({ ...paymentform, [e.target.name]: e.target.value })
-    }
+    }, []); 
 
     const getData = async () => {
         let u = await fetchuser(username)
-        setcurrentUser(u)
-        let dbpayments = await fetchpayments(username)
-        setPayments(dbpayments) 
+        setCurrentUser(u); 
+        let dbpayments = await fetchpayments(username); 
+        // Ensure all payments are plain objects and remove problematic fields
+        const plainPayments = dbpayments.map(p => {
+            let obj = p;
+            if (typeof p.toObject === 'function') {
+                obj = p.toObject();
+            }
+            // Remove _id, createdAt, updatedAt, __v, and any nested objects
+            const { _id, createdAt, updatedAt, __v, ...rest } = obj;
+            return JSON.parse(JSON.stringify(rest));
+        });
+        setpayments(plainPayments);
     }
 
-
-    const pay = async (amount) => {
-        // Get the order Id 
-        let a = await initiate(amount, username, paymentform)
-        let orderId = a.id
-        var options = {
-            "key": currentUser.razorpayid, // Enter the Key ID generated from the Dashboard
-            "amount": amount, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
-            "currency": "INR",
-            "name": "Get Me A Chai", //your business name
-            "description": "Test Transaction",
-            "image": "https://example.com/your_logo",
-            "order_id": orderId, //This is a sample Order ID. Pass the `id` obtained in the response of Step 1
-            "callback_url": `${process.env.NEXT_PUBLIC_URL}/api/razorpay`,
-            "prefill": { //We recommend using the prefill parameter to auto-fill customer's contact information especially their phone number
-                "name": "Gaurav Kumar", //your customer's name
-                "email": "gaurav.kumar@example.com",
-                "contact": "9000090000" //Provide the customer's phone number for better conversion rates 
-            },
-            "notes": {
-                "address": "Razorpay Corporate Office"
-            },
-            "theme": {
-                "color": "#3399cc"
-            }
+    const handlePayment = async(presetAmount = null) => {
+        setIsProcessing(true);
+        
+        // Validate inputs
+        if (!name.trim()) {
+            alert('Please enter your name');
+            setIsProcessing(false);
+            return;
+        }
+        
+        const paymentAmount = presetAmount || amount;
+        if (!paymentAmount || isNaN(paymentAmount)) {
+            alert('Please enter a valid amount');
+            setIsProcessing(false);
+            return;
         }
 
-        var rzp1 = new Razorpay(options);
-        rzp1.open();
-    }
+        const transaction_uuid = Date.now().toString();
+        await saveEsewaPayment(
+            name,
+            username,
+            transaction_uuid, // you must generate this before calling saveEsewaPayment
+            message,
+            paymentAmount
+        );
+        await initiatePayment(paymentAmount, transaction_uuid);
+        };
 
-    
+        const initiatePayment = async(paymentAmount, transaction_uuid) => {
+        const path = "https://rc-epay.esewa.com.np/api/epay/main/v2/form";
+        
+        const paymentData = {
+            amount: paymentAmount.toString(),
+            tax_amount: 0,
+            total_amount: paymentAmount.toString(),
+            transaction_uuid, // use the same uuid as above
+            product_code: "EPAYTEST", 
+            product_service_charge: 0,
+            product_delivery_charge: 0,
+            success_url: "http://localhost:3000/success", 
+            failure_url: "http://localhost:3000/failure", 
+            signed_field_names: "total_amount,transaction_uuid,product_code"
+        };
+
+        // Get signed payment data from server
+        const { signature: sig } = await initiateEsewaPayment(paymentData);
+        setSignature(sig);
+        setFormFields(paymentData);
+        // Submit the form after state updates
+        setTimeout(() => {
+            if (formRef.current) formRef.current.submit();
+        }, 100);
+    };
+
     return (
-        <>
-            <ToastContainer
-                position="top-right"
-                autoClose={5000}
-                hideProgressBar={false}
-                newestOnTop={false}
-                closeOnClick
-                rtl={false}
-                pauseOnFocusLoss
-                draggable
-                pauseOnHover
-                theme="light" />
-            {/* Same as */}
-            <ToastContainer />
-            <Script src="https://checkout.razorpay.com/v1/checkout.js"></Script>
+    <>
+    <div className='cover w-full bg-red-50 relative'>
+        <img className='object-cover object-center w-full h-48 md:h-[350px]' src={CurrentUser.coverpic ? CurrentUser.coverpic : '/cover.jpg'} alt="" />
+        <div className="absolute -bottom-20 right-[46%] border-b-gray-500 border-2 rounded-full">
+        <img className = "rounded-full" width ={150} height ={150} src={CurrentUser.profilepic}></img>
+        </div>
+    </div>
+    <div className="info flex justify-center items-center my-24 flex-col gap-2">
+        <div className="title font-bold text-lg">
+        @{username}
+        </div>
+         <div className='text-slate-400 text-s'>
+            Lets help {username} get a tea!
+        </div>
+        <div className='text-slate-400 text-s'>
+            {payments.length} Payments .   ₹{payments.reduce((a, b) => a + b.amount, 0)} raised
+        </div>
+        <div className="description text-slate-400"></div>
+        <div className="payment flex gap-3  w-[80%] text-white mt-11">
+        <div className="supporters w-1/2 bg-slate-900 rounded-lg p-5">
+            <h2 className='text-lg font-bold my-5 '>Supporters</h2>
+            <ul className='mx-5'>
+                {payments.length == 0 && <li>No payments yet</li>}
+                {payments.map((p, i) => {
+                return <li key = {p.oid || p._id || i} className='my-2 flex gap-2 items-center'>
+                <img src = "/avatar.gif" width={33}/>
+                {p.name} donated ₹{p.amount} with a message {p.message}
+                </li>})}
+                
+            </ul>
+            </div>
 
-
-            <div className='cover w-full bg-red-50 relative'>
-                <img className='object-cover w-full h-48 md:h-[350px] shadow-blue-700 shadow-sm' src={currentUser.coverpic} alt="" />
-                <div className='absolute -bottom-20 right-[33%] md:right-[46%] border-white overflow-hidden border-2 rounded-full size-36'>
-                    <img className='rounded-full object-cover size-36' width={128} height={128} src={currentUser.profilepic} alt="" />
+            <div className="makePayment w-1/2 bg-slate-900  rounded-lg p-5 px-10">
+                <h2 className='text-2xl font-bold my-5'>Make a Payment</h2>
+                <div className="flex gap-2 flex-col">
+                <input type = "text" className='w-full p-3 rounded-lg bg-slate-800' placeholder='Enter Name' value = {name} onChange={(e)=> setName(e.target.value)}/>
+                <input type = "text" className='w-full p-3 rounded-lg bg-slate-800' placeholder='Enter Message' value = {message} onChange={(e)=> setMessage(e.target.value)}/>
+                <input type = "text" className='w-full p-3 rounded-lg bg-slate-800' placeholder='Enter Amount' value = {amount} onChange={(e)=> setAmount(e.target.value)}/>
+                <button onClick={() => handlePayment()}
+                className="text-white bg-gradient-to-r from-cyan-800 to-blue-900 hover:bg-gradient-to-bl focus:ring-4 
+                focus:outline-none focus:ring-cyan-800 dark:focus:ring-cyan-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2">
+                    Pay
+                </button>
+                </div>
+                {/* Hidden form for eSewa submission */}
+                <form ref={formRef} method="POST" action="https://rc-epay.esewa.com.np/api/epay/main/v2/form" style={{ display: 'none' }}>
+                {Object.entries(formFields).map(([key, value]) => (
+                    <input key={key} type="hidden" name={key} value={value} />
+                ))}
+                {signature && <input type="hidden" name="signature" value={signature} />}
+                </form>
+                <div className="flex gap-2 mt-5 justify-center">
+                <button className='bg-slate-800 p-3 rounded-lg'
+                onClick={(e)=>{
+                    e.preventDefault();
+                    setAmount('100');
+                    handlePayment(100); 
+                }}>
+                    Pay ₹100
+                </button>
+                <button className='bg-slate-800 p-3 rounded-lg'
+                onClick={(e)=>{
+                    e.preventDefault();
+                    setAmount('200');
+                    handlePayment(200); 
+                }}>
+                    Pay ₹200
+                </button>
+                <button className='bg-slate-800 p-3 rounded-lg'
+                onClick={(e)=>{
+                    e.preventDefault();
+                    setAmount('300');
+                    handlePayment(300); 
+                }}>
+                    Pay ₹300
+                </button>
                 </div>
             </div>
-            <div className="info flex justify-center items-center my-24 mb-32 flex-col gap-2">
-                <div className='font-bold text-lg'>
-
-                    @{username}
-                </div>
-                <div className='text-slate-400'>
-                    Lets help {username} get a chai!
-
-                </div>
-                <div className='text-slate-400'>
-                  {payments.length} Payments .   ₹{payments.reduce((a, b) => a + b.amount, 0)} raised
-                </div>
-
-                <div className="payment flex gap-3 w-[80%] mt-11 flex-col md:flex-row">
-                    <div className="supporters w-full md:w-1/2 bg-slate-900 rounded-lg text-white px-2 md:p-10">
-                        {/* Show list of all the supporters as a leaderboard  */}
-                        <h2 className='text-2xl font-bold my-5'> Top 10 Supporters</h2>
-                        <ul className='mx-5 text-lg'>
-                            {payments.length == 0 && <li>No payments yet</li>}
-                            {payments.map((p, i) => {
-                                return <li key={i} className='my-4 flex gap-2 items-center'>
-                                    <img width={33} src="avatar.gif" alt="user avatar" />
-                                    <span>
-                                        {p.name} donated <span className='font-bold'>₹{p.amount}</span> with a message &quot;{p.message}&quot;
-                                    </span>
-                                </li>
-                            })}
-
-                        </ul>
-                    </div>
-
-                    <div className="makePayment w-full md:w-1/2 bg-slate-900 rounded-lg text-white px-2 md:p-10">
-                        <h2 className='text-2xl font-bold my-5'>Make a Payment</h2>
-                        <div className='flex gap-2 flex-col'>
-                            {/* input for name and message   */}
-                            <div>
-
-                                <input onChange={handleChange} value={paymentform.name} name='name' type="text" className='w-full p-3 rounded-lg bg-slate-800' placeholder='Enter Name' />
-                            </div>
-                            <input onChange={handleChange} value={paymentform.message} name='message' type="text" className='w-full p-3 rounded-lg bg-slate-800' placeholder='Enter Message' />
-
-
-                            <input onChange={handleChange} value={paymentform.amount} name="amount" type="text" className='w-full p-3 rounded-lg bg-slate-800' placeholder='Enter Amount' />
-
-
-                            <button onClick={() => pay(Number.parseInt(paymentform.amount) * 100)} type="button" className="text-white bg-gradient-to-br from-purple-900 to-blue-900 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 disabled:bg-slate-600 disabled:from-purple-100" disabled={paymentform.name?.length < 3 || paymentform.message?.length < 4 || paymentform.amount?.length<1}>Pay</button>
-
-                        </div>
-                        {/* Or choose from these amounts  */}
-                        <div className='flex flex-col md:flex-row gap-2 mt-5'>
-                            <button className='bg-slate-800 p-3 rounded-lg' onClick={() => pay(1000)}>Pay ₹10</button>
-                            <button className='bg-slate-800 p-3 rounded-lg' onClick={() => pay(2000)}>Pay ₹20</button>
-                            <button className='bg-slate-800 p-3 rounded-lg' onClick={() => pay(3000)}>Pay ₹30</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </>
+        </div>
+    </div>
+    
+    </>
     )
 }
 

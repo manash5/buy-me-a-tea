@@ -6,7 +6,7 @@ const UserSchema = new Schema({
     name: {type:String}, 
     username: {type: String, required: true}, 
     profilepic: {type: String}, 
-    coverpic: {type: String}, 
+    coverpic: {type: String, default: '/cover.jpg'}, 
     createdAt: {type: Date, default: Date.now}, 
     updatedAt: {type: Date, default: Date.now},
 });

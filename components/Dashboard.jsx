@@ -8,20 +8,19 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Bounce } from 'react-toastify';
 
 const Dashboard = () => {
-    const { data: session, update } = useSession()
+    const { data: session, update, status } = useSession()
     const router = useRouter()
     const [form, setform] = useState({})
 
-    useEffect(() => {
-        console.log(session)
 
-        if (!session) {
-            router.push('/login')
+    useEffect(() => {
+        if (status === "loading") return; // Wait for session to load
+        if (status === "unauthenticated") {
+            router.push('/login');
+        } else if (session) {
+            getData();
         }
-        else {
-            getData()
-        }
-    }, [])
+    }, [session, status, router]);
 
     const getData = async () => {
         let u = await fetchuser(session.user.name)
@@ -29,12 +28,23 @@ const Dashboard = () => {
     }
 
     const handleChange = (e) => {
-        setform({ ...form, [e.target.name]: e.target.value })
+        if (e.target.type === 'file') {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setform({ ...form, [e.target.name]: reader.result });
+                };
+                reader.readAsDataURL(file); // base64 string
+            }
+        } else {
+            setform({ ...form, [e.target.name]: e.target.value })
+        }
     }
 
     const handleSubmit = async (e) => {
-
-        let a = await updateProfile(e, session.user.name)
+        e.preventDefault(); // Prevent default form submission
+        let a = await updateProfile(form, session.user.name); // Pass form state, not event
         toast('Profile Updated', {
             position: "top-right",
             autoClose: 5000,
@@ -45,12 +55,8 @@ const Dashboard = () => {
             progress: undefined,
             theme: "light",
             transition: Bounce,
-            });
+        });
     }
-
-
-
-
 
     return (
         <>
@@ -71,7 +77,7 @@ const Dashboard = () => {
             <div className='container mx-auto py-5 px-6 '>
                 <h1 className='text-center my-5 text-3xl font-bold'>Welcome to your Dashboard</h1>
 
-                <form className="max-w-2xl mx-auto" action={handleSubmit}>
+                <form className="max-w-2xl mx-auto" onSubmit={handleSubmit}>
 
                     <div className='my-2'>
                         <label htmlFor="name" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Name</label>
@@ -90,23 +96,29 @@ const Dashboard = () => {
                     {/* input for profile picture of input type text */}
                     <div className="my-2">
                         <label htmlFor="profilepic" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Profile Picture</label>
-                        <input value={form.profilepic ? form.profilepic : ""} onChange={handleChange} type="text" name='profilepic' id="profilepic" className="block w-full p-2 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-xs focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
+                        <input onChange={handleChange} type="file" name='profilepic' id="profilepic" className="block w-full p-2 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-xs focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
+                        {form.profilepic && (
+                            <img src={form.profilepic} alt="Profile Preview" className="mt-2 h-16 w-16 object-cover rounded-full" />
+                        )}
                     </div>
 
                     {/* input for cover pic  */}
                     <div className="my-2">
                         <label htmlFor="coverpic" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Cover Picture</label>
-                        <input value={form.coverpic ? form.coverpic : ""} onChange={handleChange} type="text" name='coverpic' id="coverpic" className="block w-full p-2 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-xs focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
+                        <input onChange={handleChange} type="file" name='coverpic' id="coverpic" className="block w-full p-2 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-xs focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
+                        {form.coverpic && (
+                            <img src={form.coverpic} alt="Cover Preview" className="mt-2 h-24 w-full object-cover rounded-lg" />
+                        )}
                     </div>
                     {/* input razorpay id */}
                     <div className="my-2">
-                        <label htmlFor="razorpayid" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Razorpay Id</label>
-                        <input value={form.razorpayid ? form.razorpayid : ""} onChange={handleChange} type="text" name='razorpayid' id="razorpayid" className="block w-full p-2 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-xs focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
+                        <label htmlFor="esewaid" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Esewa Id</label>
+                        <input value={form.esewaid ? form.esewaid : ""} onChange={handleChange} type="text" name='esewaid' id="esewaid" className="block w-full p-2 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-xs focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
                     </div>
                     {/* input razorpay secret */}
                     <div className="my-2">
-                        <label htmlFor="razorpaysecret" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Razorpay Secret</label>
-                        <input value={form.razorpaysecret ? form.razorpaysecret : ""} onChange={handleChange} type="text" name='razorpaysecret' id="razorpaysecret" className="block w-full p-2 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-xs focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
+                        <label htmlFor="esewasecret" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Esewa Secret</label>
+                        <input value={form.esewasecret ? form.esewasecret : ""} onChange={handleChange} type="text" name='esewasecret' id="esewasecret" className="block w-full p-2 text-gray-900 border border-gray-300 rounded-lg bg-gray-50 text-xs focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
                     </div>
 
                     {/* Submit Button  */}

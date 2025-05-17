@@ -19,8 +19,8 @@ const Navbar = () => {
 
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: "/" }); // Redirects to homepage after logout
-    router.push("/"); // Extra safety (optional)
+    await signOut({ callbackUrl: "/" }); 
+    router.push("/"); 
   };
 
   return (

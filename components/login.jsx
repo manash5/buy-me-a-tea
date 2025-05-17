@@ -1,8 +1,11 @@
 'use client'
-import React, {useState} from 'react'
+import React, {useState, useEffect} from 'react'
 import { useSession, signIn, signOut } from "next-auth/react"
+import { useRouter } from 'next/navigation'
 
 const login = ({onClose}) => {
+    const { data: session } = useSession()
+    const router = useRouter()
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -15,6 +18,12 @@ const login = ({onClose}) => {
           [name]: value
         }));
       };
+
+      useEffect(() => {
+        if (session) {
+            router.push('/dashboard');
+        }
+        }, [session, router]);
     
       const handleSubmit = (e) => {
         e.preventDefault();
@@ -54,14 +63,14 @@ const login = ({onClose}) => {
                 <div className="mt-7 flex flex-col gap-2">
 
                     <button
-                        onClick={()=>{signIn("github")}} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded border border-slate-300 bg-white p-2 text-sm font-medium text-black outline-none focus:ring-2 focus:ring-[#333] focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60"><img
+                        onClick={()=>{signIn("github", {callbackUrl: "/dashboard"})}} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded border border-slate-300 bg-white p-2 text-sm font-medium text-black outline-none focus:ring-2 focus:ring-[#333] focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60"><img
                             src="https://www.svgrepo.com/show/512317/github-142.svg" alt="GitHub"
                             className="h-[18px] w-[18px] "  />
                         Continue with GitHub
                     </button>
 
                     <button
-                        onClick={()=>{signIn("google")}} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded border border-slate-300 bg-white p-2 text-sm font-medium text-black outline-none focus:ring-2 focus:ring-[#333] focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60"><img
+                        onClick={()=>{signIn("google", {callbackUrl : "/dashboard"})}} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded border border-slate-300 bg-white p-2 text-sm font-medium text-black outline-none focus:ring-2 focus:ring-[#333] focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60"><img
                             src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google"
                             className="h-[18px] w-[18px] " />Continue with
                         Google
